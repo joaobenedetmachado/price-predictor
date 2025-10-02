@@ -1,12 +1,13 @@
 import tensorflow as tf
 import csv
-import fastapi
+from fastapi import FastAPI, File, UploadFile
 import pandas as pd 
 
-app = fastapi.FastAPI()
+app = FastAPI()
 
-@app.post("/dataset")
-def create_dataset(file_path: str):
-    data = pd.read_csv(file_path)
-    dataset = tf.data.Dataset.from_tensor_slices(dict(data))
-    return dataset
+@app.post("/predict")
+async def predict(file: UploadFile = File(...)):
+    df = pd.read_csv(file.file)
+    print(df.head())
+    return {"actual": df["Price"].tolist(), "predicted": df["Price"].tolist()}
+    

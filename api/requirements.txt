@@ -1,3 +1,5 @@
-tensorflow
 fastapi
-csv
+uvicorn
+tensorflow
+pandas
+python-multipart
