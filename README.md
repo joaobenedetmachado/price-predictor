@@ -9,6 +9,9 @@
 
 price-predictor is a **real-time price prediction system** for products or assets using **Time Series Analysis** and **Deep Learning**. This project demonstrates how to build, train, and deploy machine learning models with a **simple HTML/CSS/JS frontend** and a **FastAPI backend**.
 
+<img width="1392" height="870" alt="imagem" src="https://github.com/user-attachments/assets/6d0ab39a-d970-433a-89e5-c0c5aa8eb401" />
+
+
 ---
 
 ## Features 
