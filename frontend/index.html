@@ -1,11 +1,222 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>price predictor</title>
+    <title>Price Predictor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+    </style>
 </head>
-<body>
-    
+
+<body class="bg-slate-950 min-h-screen text-gray-200 p-6">
+    <div class="container max-w-7xl mx-auto">
+        <h1 class="text-4xl font-semibold text-center mb-10 text-gray-100">
+            Price Predictor
+        </h1>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column - Upload Section -->
+            <div class="bg-slate-900 border border-slate-800 rounded-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-100 mb-5">Upload & Settings</h2>
+
+                <label for="csvFile"
+                    class="block w-full px-6 py-3 bg-slate-800 text-gray-200 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors font-medium text-center">
+                    <span>Choose CSV File</span>
+                    <input type="file" id="csvFile" accept=".csv" class="hidden" />
+                </label>
+
+                <div class="mt-5">
+                    <label for="rangeValue" class="block font-medium text-gray-400 mb-2">Prediction Range
+                        (days):</label>
+                    <input type="number" id="rangeValue" min="1" max="365" value="5"
+                        class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-gray-200 focus:outline-none focus:border-slate-600" />
+                </div>
+
+                <button id="predictBtn" disabled
+                    class="mt-5 w-full px-8 py-3 bg-slate-800 text-gray-200 rounded-lg font-medium hover:bg-slate-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-800">
+                    Predict Prices
+                </button>
+
+                <div id="loading" class="hidden text-center py-8 mt-5 border-t border-slate-800">
+                    <div
+                        class="w-10 h-10 border-4 border-slate-800 border-t-slate-600 rounded-full spinner mx-auto mb-3">
+                    </div>
+                    <p class="text-sm text-gray-400">Predicting...</p>
+                </div>
+
+                <div id="error"
+                    class="hidden bg-red-950 border border-red-900 text-red-400 px-4 py-3 rounded-lg mt-5 text-sm">
+                </div>
+            </div>
+
+            <!-- Middle Column - Current Data -->
+            <div id="currentData" class="hidden bg-slate-900 border border-slate-800 rounded-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-100 mb-5">Current Data</h2>
+                <div class="overflow-x-auto max-h-[600px] overflow-y-auto rounded-lg border border-slate-800">
+                    <table id="currentTable" class="w-full">
+                        <thead class="sticky top-0 bg-slate-800">
+                            <tr>
+                                <th
+                                    class="px-4 py-3 text-left font-medium text-gray-300 border-b border-slate-700 text-sm">
+                                    Date</th>
+                                <th
+                                    class="px-4 py-3 text-left font-medium text-gray-300 border-b border-slate-700 text-sm">
+                                    Price</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Right Column - Predictions -->
+            <div id="predictions" class="hidden bg-slate-900 border border-slate-800 rounded-lg p-6">
+                <h2 class="text-xl font-semibold text-gray-100 mb-5">Predicted Prices</h2>
+                <div class="overflow-x-auto max-h-[600px] overflow-y-auto rounded-lg border border-slate-800">
+                    <table id="predictionsTable" class="w-full">
+                        <thead class="sticky top-0 bg-slate-800">
+                            <tr>
+                                <th
+                                    class="px-4 py-3 text-left font-medium text-gray-300 border-b border-slate-700 text-sm">
+                                    Date</th>
+                                <th
+                                    class="px-4 py-3 text-left font-medium text-gray-300 border-b border-slate-700 text-sm">
+                                    Predicted Price</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('csvFile');
+        const rangeInput = document.getElementById('rangeValue');
+        const predictBtn = document.getElementById('predictBtn');
+        const currentDataSection = document.getElementById('currentData');
+        const currentTableBody = document.querySelector('#currentTable tbody');
+        const predictionsSection = document.getElementById('predictions');
+        const predictionsTableBody = document.querySelector('#predictionsTable tbody');
+        const loading = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+
+        let csvData = null;
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                csvData = parseCSV(text);
+                displayCurrentData(csvData);
+                predictBtn.disabled = false;
+                errorDiv.classList.add('hidden');
+            } catch (err) {
+                showError('Error reading CSV file: ' + err.message);
+            }
+        });
+
+        predictBtn.addEventListener('click', async () => {
+            const range = parseInt(rangeInput.value);
+            if (!csvData || !range) return;
+
+            try {
+                loading.classList.remove('hidden');
+                predictionsSection.classList.add('hidden');
+                errorDiv.classList.add('hidden');
+
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+
+                const response = await fetch(`http://localhost:8000/predict?range_values=${range}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('API request failed');
+                }
+
+                const predictions = await response.json();
+                displayPredictions(predictions);
+            } catch (err) {
+                showError('Error making prediction: ' + err.message);
+            } finally {
+                loading.classList.add('hidden');
+            }
+        });
+
+        function parseCSV(text) {
+            const lines = text.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+
+            const data = [];
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim());
+                const row = {};
+                headers.forEach((header, index) => {
+                    row[header] = values[index];
+                });
+                data.push(row);
+            }
+
+            return data;
+        }
+
+        function displayCurrentData(data) {
+            currentTableBody.innerHTML = '';
+
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-800 transition-colors';
+                tr.innerHTML = `
+            <td class="px-4 py-2 border-b border-slate-800 text-sm">${row.Date}</td>
+            <td class="px-4 py-2 border-b border-slate-800 text-sm">${parseFloat(row.Price).toFixed(2)}</td>
+        `;
+                currentTableBody.appendChild(tr);
+            });
+
+            currentDataSection.classList.remove('hidden');
+        }
+
+        function displayPredictions(predictions) {
+            predictionsTableBody.innerHTML = '';
+
+            predictions.forEach(pred => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-800 transition-colors';
+                const date = new Date(pred.Date);
+                const formattedDate = date.toISOString().split('T')[0];
+
+                tr.innerHTML = `
+            <td class="px-4 py-2 border-b border-slate-800 text-sm">${formattedDate}</td>
+            <td class="px-4 py-2 border-b border-slate-800 text-sm">${pred.PredictedPrice.toFixed(2)}</td>
+        `;
+                predictionsTableBody.appendChild(tr);
+            });
+
+            predictionsSection.classList.remove('hidden');
+        }
+
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+    </script>
 </body>
+
 </html>
