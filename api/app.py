@@ -33,7 +33,9 @@ def prepare_data(df):
 
     df = df.drop(columns=["Date"])
 
-    dataset = tfdf.keras.pd_dataframe_to_tf_dataset(df, label="Price")
+    dataset = tfdf.keras.pd_dataframe_to_tf_dataset(df, label="Price", task=tfdf.keras.Task.REGRESSION)
+
+
 
     for features, label in dataset.take(5):
         print("Features:", features)

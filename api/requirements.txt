@@ -3,3 +3,7 @@ uvicorn
 tensorflow
 pandas
 python-multipart
+scikit-learn
+numpy
+datetime
+tensorflow_decision_forests
